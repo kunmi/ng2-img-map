@@ -132,7 +132,17 @@ export class ImgMapComponent {
         const context = this.canvas.nativeElement.getContext('2d');
         context.beginPath();
         let pixel:number[] =  marker.getCoordsAsPixel(this.image);
-        context.arc(pixel[0], pixel[1], marker.size, 0, 2 * Math.PI);
+
+        switch (marker.base)
+        {
+            case ShapeType.Circle:
+                context.arc(pixel[0], pixel[1], marker.size, 0, 2 * Math.PI);
+                break;
+
+            case ShapeType.Square:
+                context.rect(pixel[0], pixel[1], marker.size, marker.size);
+                break;
+        }
         switch (type) {
             case 'active':
                 context.fillStyle = 'rgba(255, 0, 0, 0.6)';
@@ -150,11 +160,21 @@ export class ImgMapComponent {
      * Check if a position is inside a marker.
      */
     private insideMarker(marker: Marker, coordinate: number[]): boolean {
+
         let pixel = marker.getCoordsAsPixel(this.image);
-        return Math.sqrt(
-            (coordinate[0] - pixel[0]) * (coordinate[0] - pixel[0])
-            + (coordinate[1] - pixel[1]) * (coordinate[1] - pixel[1])
-        ) < marker.size;
+        if (marker.base == ShapeType.Circle) {
+
+            return Math.sqrt(
+                (coordinate[0] - pixel[0]) * (coordinate[0] - pixel[0])
+                + (coordinate[1] - pixel[1]) * (coordinate[1] - pixel[1])
+            ) < marker.size;
+        }
+        else
+        {
+            return coordinate[0]>=pixel[0] && coordinate[0]<=((pixel[0])+marker.size)
+                &&
+                coordinate[1]>=pixel[1] && coordinate[1]<=((pixel[1])+marker.size);
+        }
     }
 
 
