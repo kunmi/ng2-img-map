@@ -98,6 +98,18 @@ export class ImgMapComponent {
 
 
 
+
+
+    /**
+     *  Quality of drawn image - low|medium|high. Dependent on if ImageSmoothing is enabled
+     * @type {string}
+     */
+    imageSmoothingQuality = "low";
+
+    imageSmoothingEnabled = false;
+
+
+
     /**
      * Index of the active state marker.
      */
@@ -154,6 +166,40 @@ export class ImgMapComponent {
                 context.fillStyle = 'rgba(0, 0, 255, 0.4)';
         }
         context.fill();
+
+        if(marker.type == MarkerType.Composite){
+            context.beginPath();
+
+            if(marker.type != null)
+            {
+                switch (marker.base)
+                {
+                    case ShapeType.Square:
+
+                        pixel[0] = (pixel[0] + marker.size/2) - marker.imageWidth/2;
+                        pixel[1] = (pixel[1] + marker.size/2) - marker.imageHeight/2;
+                        break;
+
+                    case ShapeType.Circle:
+                        pixel[0] = (pixel[0] - marker.imageWidth/2);
+                        pixel[1] = (pixel[1] - marker.imageHeight/2);
+                        break;
+                }
+
+
+            }
+            if(this.imageSmoothingEnabled)
+            {
+                context.mozImageSmoothingEnabled = true;
+                context.imageSmoothingQuality = this.imageSmoothingQuality;
+                context.webkitImageSmoothingEnabled = true;
+                context.msImageSmoothingEnabled = true;
+                context.imageSmoothingEnabled = true;
+            }
+
+            context.drawImage(marker.image, pixel[0], pixel[1], marker.imageWidth, marker.imageHeight);
+        }
+
     }
 
     /**
@@ -315,7 +361,11 @@ export class Marker
     type: MarkerType = MarkerType.Shape;
     base: ShapeType = ShapeType.Circle;
     size = 10;
+
     image = "";
+    imageWidth: number = 0;
+    imageHeight: number = 0;
+
     data: any = {};
 
     constructor(x, y, shape?:ShapeType)
@@ -332,11 +382,7 @@ export class Marker
         this.size = size;
     }
 
-    setAsComposite(image: string, base : ShapeType){
-        this.image = image;
-        this.type = MarkerType.Composite;
-        this.base = base;
-    }
+
 
     /**
      * Convert a percentage position to a pixel position.
@@ -352,6 +398,16 @@ export class Marker
     setData(data:any):Marker{
         this.data = data;
         return this;
+    }
+
+
+    setAsComposite(image: string, base : ShapeType, width: number, height: number){
+        this.image = image;
+        this.type = MarkerType.Composite;
+        this.base = base;
+
+        this.imageWidth = width;
+        this.imageHeight = height;
     }
 
 
