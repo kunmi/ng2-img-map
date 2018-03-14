@@ -25,6 +25,8 @@ import {
                     (click)="onClick($event)"
                     (mousemove)="onMousemove($event)"
                     (mouseout)="onMouseout($event)"
+                    (mousedown)="onMouseDown($event)"
+                    (mouseup)="onMouseUp($event)"
             ></canvas>
         </div>
     `
@@ -97,16 +99,22 @@ export class ImgMapComponent {
     private markerHover: number = null;
 
 
-
-
+    //Todo
+    //Move image smoothing and dragging to @input
 
     /**
      *  Quality of drawn image - low|medium|high. Dependent on if ImageSmoothing is enabled
      * @type {string}
      */
-    imageSmoothingQuality = "low";
+    imageSmoothingQuality = "medium";
 
     imageSmoothingEnabled = false;
+
+
+    draggable = false;
+
+    draggedIndex: number;
+    draggedPosition = null;
 
 
 
@@ -208,20 +216,61 @@ export class ImgMapComponent {
     private insideMarker(marker: Marker, coordinate: number[]): boolean {
 
         let pixel = marker.getCoordsAsPixel(this.image);
-        if (marker.base == ShapeType.Circle) {
 
-            return Math.sqrt(
-                (coordinate[0] - pixel[0]) * (coordinate[0] - pixel[0])
-                + (coordinate[1] - pixel[1]) * (coordinate[1] - pixel[1])
-            ) < marker.size;
-        }
-        else
+        if(marker.type == MarkerType.Shape)
         {
-            return coordinate[0]>=pixel[0] && coordinate[0]<=((pixel[0])+marker.size)
-                &&
-                coordinate[1]>=pixel[1] && coordinate[1]<=((pixel[1])+marker.size);
+            if (marker.base == ShapeType.Circle) {
+
+                return Math.sqrt(
+                    (coordinate[0] - pixel[0]) * (coordinate[0] - pixel[0])
+                    + (coordinate[1] - pixel[1]) * (coordinate[1] - pixel[1])
+                ) < marker.size;
+            }
+            else
+            {
+                return (coordinate[0]>=pixel[0] && coordinate[0]<=((pixel[0])+marker.size))
+                    &&
+                    (coordinate[1]>=pixel[1] && coordinate[1]<=((pixel[1])+marker.size));
+            }
         }
+
+        else if(marker.type == MarkerType.Composite) {
+            let inside = false;
+
+            if(marker.base == ShapeType.Circle)
+            {
+                inside = Math.sqrt(
+                    (coordinate[0] - pixel[0]) * (coordinate[0] - pixel[0])
+                    + (coordinate[1] - pixel[1]) * (coordinate[1] - pixel[1])
+                ) < marker.size;
+
+                if(inside)
+                    return inside;
+            }
+
+            if(marker.base == ShapeType.Square)
+            {
+                inside = (coordinate[0]>=pixel[0] && coordinate[0]<=((pixel[0])+marker.size))
+                    &&
+                    (coordinate[1]>=pixel[1] && coordinate[1]<=((pixel[1])+marker.size));
+
+                if(inside)
+                    return inside;
+            }
+
+            if(!inside)
+            {
+                inside = (coordinate[0]>=pixel[0] && coordinate[0]<=((pixel[0])+marker.imageWidth))
+                    &&
+                    (coordinate[1]>=pixel[1] && coordinate[1]<=((pixel[1])+marker.imageHeight));
+            }
+
+            return inside;
+
+        }
+
     }
+
 
 
     createMarker(coords: number[], shape?:ShapeType): Marker{
@@ -275,14 +324,30 @@ export class ImgMapComponent {
         context.clearRect(0, 0, width, height);
 
         this.markers.forEach((marker, index) => {
-            if (this.markerActive === index) {
-                this.drawMarker(marker, 'active');
-            } else if (this.markerHover === index) {
-                this.drawMarker(marker, 'hover');
-            } else {
-                this.drawMarker(marker);
+
+            if(!(this.draggedIndex!=null && this.draggedIndex!=index)) {
+                if (this.markerActive === index) {
+                    this.drawMarker(marker, 'active');
+                } else if (this.markerHover === index) {
+                    this.drawMarker(marker, 'hover');
+                } else {
+                    this.drawMarker(marker);
+                }
             }
         });
+
+        if(this.draggable)
+        {
+            if(this.draggedIndex!=null)
+            {
+                let marker: Marker = this.markers[this.draggedIndex];
+                let dimen = this.pixelToMarker(this.draggedPosition);
+                marker.x = dimen[0];
+                marker.y = dimen[1];
+                this.drawMarker(marker);
+            }
+        }
+
     }
 
     private onClick(event: MouseEvent): void {
@@ -334,6 +399,12 @@ export class ImgMapComponent {
                 draw = true;
             }
             if (draw) this.draw();
+
+            if(this.draggedIndex != null) {
+                this.draggedPosition = cursor;
+                this.draw();
+
+            }
         }
     }
 
@@ -347,6 +418,41 @@ export class ImgMapComponent {
     private onResize(event: UIEvent): void {
         this.draw();
     }
+
+
+    onMouseDown(event: MouseEvent) : void {
+        const cursor = this.cursor(event);
+
+        if(this.draggable)
+        {
+            this.markers.forEach((marker, index) => {
+                if (this.insideMarker(marker, cursor)) {
+                    if (this.draggedIndex == null) {
+                        this.draggedIndex = index;
+                    }
+                }
+            });
+
+
+        }
+    }
+
+    onMouseUp(event: MouseEvent): void {
+        if(this.draggedIndex!=null)
+        {
+            const cursor = this.cursor(event);
+
+            let marker:Marker = this.markers[this.draggedIndex];
+            let dimen = this.pixelToMarker(cursor);
+            marker.x =dimen[0];
+            marker.y = dimen[1];
+            this.markers[this.draggedIndex] = marker;
+            this.draggedIndex = null;
+
+            this.draw();
+        }
+    }
+
 
 
 }
